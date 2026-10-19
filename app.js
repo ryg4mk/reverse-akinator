@@ -13,18 +13,14 @@
   const toastNode = document.getElementById('toast');
   const statKey = 'reverse_akinator_stats_v1';
   const settingsKey = 'reverse_akinator_settings_v1';
-  const tabs = [
-    ['all', 'すべて'], ['basic','基本'], ['animal','生き物'], ['food','食べ物'],
-    ['object','道具・暮らし'], ['vehicle','乗り物'], ['nature','自然'], ['color','色・形']
-  ];
-  let stats = getStored(statKey, {games:0,wins:0,streak:0,best:0,recent:[],daily:{}});
+
+    let stats = getStored(statKey, {games:0,wins:0,streak:0,best:0,recent:[],daily:{}});
   const settings = getStored(settingsKey, {difficulty:1,mode:'random',sound:false});
   let difficulty = [1,2,3].includes(settings.difficulty) ? settings.difficulty : 1;
   let gameMode = settings.mode === 'daily' ? 'daily' : 'random';
   let sound = !!settings.sound;
   let game = null;
-  let selectedTab = 'all';
-  let queryText = '';
+  let choicePage = 0;
   let toastTimer;
   let audioContext = null;
 
@@ -61,32 +57,60 @@
     return poolFor(game.difficulty).filter(item => game.asked.every(({id,answer})=>answerFor(item,DATA.questions[id])===answer));
   }
   function used(id) {return !!game?.asked.some(row=>row.id===id);}
-  function recommended() {
-    if(!game)return [];
+function recommended() {
+    if (!game) return {rows:[], page:0, pages:0, phase:'', description:''};
     const remaining = candidates();
+    const total = poolFor(game.difficulty).length;
     const n = remaining.length;
-    const pool = poolFor(game.difficulty);
-    const scored = DATA.questions.filter(q=>!used(q.id)).map(q=>{
-      const counts = {yes:0,no:0,maybe:0};
-      remaining.forEach(item => counts[answerFor(item,q)]++);
+    const groups = {};
+    for (const item of remaining) groups[item.group] = (groups[item.group] || 0) + 1;
+    const largest = Math.max(0,...Object.values(groups));
+    const leadShare = n ? largest/n : 0;
+    const broad = game.asked.length === 0 || (n > 24 && leadShare < .60 && game.asked.length < 5);
+    const phase = broad ? 'まずは大きな特徴から' : n > 14 ? '特徴をもう少し詳しく' : 'かなり絞れてきました';
+    const description = broad
+      ? '今の状況に合う質問を選んでみよう。回答に合わせて次の質問が変わります。'
+      : n > 14 ? 'これまでの答えをもとに、より具体的な質問を用意しました。'
+      : '違いが出やすい細かな質問です。答えに自信があれば、そのまま回答してもOK！';
+    if (n <= 1) return {rows:[],page:0,pages:0,phase:'もう少しで正解！',description:'質問でこれ以上絞り込めません。思いついた名前を入力してみよう。'};
+    const scored = [];
+    for (const q of DATA.questions) {
+      if (used(q.id)) continue;
+      if (broad && q.section !== 'all') continue;
+      if (!broad && q.section !== 'all' && q.section !== 'color') {
+        const related = q.section === 'nature' ? (groups.nature||0)+(groups.plant||0) : (groups[q.section]||0);
+        if (related / n < (n <= 12 ? .08 : .19)) continue;
+      }
+      if (q.section === 'color' && (broad || n > 18)) continue;
       let entropy = 0;
-      for(const count of Object.values(counts)) if(count&&n){const p=count/n;entropy-=p*Math.log2(p);}
-      // Keep universally useful questions near the top, especially when there is little remaining variation.
-      const globalYes = pool.filter(item=>answerFor(item,q)==='yes').length / pool.length;
-      const generality = 1-Math.abs(.5-globalYes)*2;
-      const base = q.section==='all'?.11:0;
-      return {q,value:entropy*1.9+generality*.16+base};
-    }).sort((a,b)=>b.value-a.value||a.q.id-b.q.id);
-    const selected=[];const counts={};
-    for(const row of scored){
-      const section=row.q.section;
-      if((counts[section]||0)>=2)continue;
-      selected.push(row.q);counts[section]=(counts[section]||0)+1;
-      if(selected.length===4)break;
+      const counts = {yes:0,no:0,maybe:0};
+      const signature=[];
+      for (const item of remaining) {
+        const a=answerFor(item,q);
+        counts[a]++;
+        signature.push(a[0]);
+      }
+      if (Object.values(counts).filter(x=>x>0).length <= 1) continue;
+      for (const c of Object.values(counts)) if(c){const p=c/n;entropy-=p*Math.log2(p);}
+      const categoryBonus = !broad && q.section !== 'all' ? .16 : 0;
+      const shapePenalty = q.section === 'color' && n > 7 ? .23 : 0;
+      const score = entropy * 3 + categoryBonus - shapePenalty;
+      scored.push({q,score,signature:signature.join('')});
     }
-    return selected;
+    scored.sort((a,b)=>b.score-a.score || a.q.id-b.q.id);
+    // 同じ分け方をする質問を何度も見せず、質問の意味が変わる選択肢を優先。
+    const unique=[];
+    const signatures=new Set();
+    for(const entry of scored){
+      if(signatures.has(entry.signature))continue;
+      signatures.add(entry.signature);
+      unique.push(entry.q);
+    }
+    const pages=Math.ceil(unique.length/4);
+    const page=pages?choicePage%pages:0;
+    return {rows:unique.slice(page*4,(page+1)*4),page,pages,phase,description};
   }
-  function soundState(){document.getElementById('sound-toggle').innerHTML=sound?'♪':'♫';document.getElementById('sound-toggle').setAttribute('aria-label',sound?'サウンドをオフにする':'サウンドをオンにする');}
+    function soundState(){document.getElementById('sound-toggle').innerHTML=sound?'♪':'♫';document.getElementById('sound-toggle').setAttribute('aria-label',sound?'サウンドをオフにする':'サウンドをオンにする');}
   function playSound(kind) {
     if(!sound)return;
     try{
@@ -117,7 +141,7 @@
         <div class="intro-copy">
           <span class="eyebrow">YOU ASK. THE MYSTERY ANSWERS.</span>
           <h1>質問するのは、<em>あなた。</em></h1>
-          <p class="lead">今回はゲームが秘密のお題を考えます。<br><strong>質問を選んで、答えを推理。</strong><br>正体がわかったら、名前を入力して当てよう！</p>
+          <p class="lead">今回はゲームが秘密のお題を考えます。<br><strong>質問を選ぶたび、次の質問が変化。</strong><br>手がかりを集めて、正体を当てよう！</p>
           <div class="howto"><span><b>01</b> 質問を選ぶ</span><span><b>02</b> 答えを集める</span><span><b>03</b> 名前を入力する</span></div>
           <div class="selection-label">難易度を選択 <span>質問数に制限なし</span></div>
           <div class="difficulty-grid">${options.map(([name,desc,level])=>`<button class="difficulty ${difficulty===level?'active':''}" data-difficulty="${level}" aria-pressed="${difficulty===level}"><strong>${name}</strong><small>${desc}</small></button>`).join('')}</div>
@@ -134,7 +158,7 @@
         </div>
       </section>
       <section class="feature-row" aria-label="ゲームの特徴">
-        <div class="feature-card"><div class="feature-icon">✧</div><div><strong>質問で推理</strong><p>気になる質問を自由に選択。答えを少しずつ絞っていこう。</p></div></div>
+        <div class="feature-card"><div class="feature-icon">✧</div><div><strong>質問で推理</strong><p>今の推理に合う質問が少しずつ登場。答えるたびに内容が変化。</p></div></div>
         <div class="feature-card"><div class="feature-icon">⌕</div><div><strong>ひらめいたら回答</strong><p>思いついたタイミングで入力。ひらがな・漢字の別名にも対応。</p></div></div>
         <div class="feature-card"><div class="feature-icon">♛</div><div><strong>最短クリアに挑戦</strong><p>少ない質問で正解すると高得点。自己ベストを更新しよう。</p></div></div>
       </section>
@@ -153,7 +177,7 @@
       target=options[randomIndex(options.length)];
     }
     game={target,difficulty,mode:gameMode,asked:[],misses:[],finished:false,won:false,finalScore:0};
-    selectedTab='all';queryText='';
+    choicePage=0;
     renderGame(false);
     window.scrollTo({top:0,behavior:'instant'});
   }
@@ -181,43 +205,30 @@
       ${rec.length?`<ol class="history-list">${rec.map((row,i)=>`<li class="history-entry"><span class="history-number">${String(game.asked.length-i).padStart(2,'0')}</span><span class="history-question">${escapeHTML(DATA.questions[row.id].text)}</span><span class="answer-pill ${row.answer==='yes'?'':row.answer}">${ANSWER[row.answer].short}</span></li>`).join('')}</ol>`:`<div class="empty-history">まだ質問はありません。<br>右の質問をタップしてみよう。</div>`}
     </div><div class="left-actions"><button type="button" class="link-button" id="open-reveal">◌ 答えを見る（ギブアップ）</button></div>`;
   }
-  function recommendedHtml(){
-    const rows=recommended();
-    return `<div class="section-heading"><div><span class="eyebrow">SUGGESTED QUESTIONS</span><h2>おすすめの質問</h2><p>これまでの答えをもとに、おすすめを選んでいます。</p></div></div>
-      <div class="recommended">${rows.map((q,i)=>`<button type="button" class="recommended-button" data-question="${q.id}"><span class="qtop"><span>${String(i+1).padStart(2,'0')} / ${escapeHTML(q.label)}</span><span class="q-arrow">↗</span></span><span class="qtext">${escapeHTML(q.text)}</span></button>`).join('')}</div>`;
-  }
-  function tabsHtml(){return tabs.map(([key,label])=>`<button type="button" class="tab ${key===selectedTab?'active':''}" role="tab" aria-selected="${key===selectedTab}" data-tab="${key}">${label}</button>`).join('');}
-  function questionListHtml(){
-    const result=DATA.questions.filter(q=>
-      (selectedTab==='all'||(selectedTab==='basic'?q.section==='all':q.section===selectedTab)) &&
-      (!queryText||normalize(q.text).includes(normalize(queryText)))
-    );
-    return {total:result.length,html:result.length?result.map(q=>{
-      const prev=game.asked.find(row=>row.id===q.id);
-      return `<button type="button" class="question-button ${prev?'asked':''}" data-question="${q.id}" ${prev?'disabled':''} aria-label="${escapeHTML(q.text)}${prev?' 質問済み':''}"><span>${escapeHTML(q.text)}</span><span class="arrow">${prev?'✓':'↗'}</span></button>`;
-    }).join(''):`<div class="empty-search">該当する質問がありません。<br>別のキーワードを試してみてください。</div>`};
-  }
-  function renderQuestionPanel(){
-    const library = document.getElementById('question-list');
-    if(!library||!game)return;
-    const res=questionListHtml();library.innerHTML=res.html;
-    document.getElementById('library-count').textContent=`${res.total} 件`;
-    document.getElementById('question-tabs').innerHTML=tabsHtml();
+function recommendedHtml() {
+    const plan=recommended();
+    const head=`<div class="adaptive-intro">
+      <div><span class="eyebrow">CHOOSE YOUR QUESTION</span><h2>${escapeHTML(plan.phase)}</h2>
+      <p>${escapeHTML(plan.description)}</p></div>
+      <span class="step-chip">QUESTION ${String(game.asked.length+1).padStart(2,'0')}</span>
+    </div>`;
+    if(!plan.rows.length) return head+`<div class="adaptive-empty"><span aria-hidden="true">✦</span><strong>ひらめいたら答えてみよう！</strong><p>有効な新しい質問はありません。正体を推理して回答しましょう。</p><button type="button" class="secondary-btn" id="open-guess">答えを入力する ↗</button></div>`;
+    return head+`<div class="recommended adaptive-questions" aria-label="今選べる質問">
+      ${plan.rows.map((q,i)=>`<button type="button" class="recommended-button" data-question="${q.id}"><span class="qtop"><span>${String(plan.page*4+i+1).padStart(2,'0')} · ${escapeHTML(q.label)}</span><span class="q-arrow" aria-hidden="true">↗</span></span><span class="qtext">${escapeHTML(q.text)}</span></button>`).join('')}
+    </div>
+    <div class="adaptive-bottom"><div class="adaptive-hint">質問は毎回入れ替わります。どれか1つ選んでください。</div>
+      ${plan.pages>1?`<button type="button" class="more-questions" id="next-questions">ほかの質問を見る <span aria-hidden="true">↻</span></button>`:''}
+    </div>`;
   }
   function renderGame(keepScroll=true){
     if(!game){home();return;}
     const scroll=window.scrollY;
-    const list=questionListHtml();
     const last=game.asked.at(-1);
     app.innerHTML=`<section class="game-shell">
       <div class="game-crumb"><div><strong>逆アキネーター</strong><span>　/　${game.mode==='daily'?'今日の1問':'ランダム'}　/　${['','やさしい','ふつう','むずかしい'][game.difficulty]}</span></div><button type="button" id="return-home" class="link-button">← ホームへ</button></div>
       <div class="game-layout"><div class="left-column">${statsHtml()}${historyHtml()}</div>
         <div class="question-zone">
           ${recommendedHtml()}
-          <div class="library-header"><div><h3>質問リスト</h3><p>好きな質問を選んで聞いてみよう。同じ質問は1回まで。</p></div><span id="library-count" class="library-count">${list.total} 件</span></div>
-          <div id="question-tabs" class="tabs-wrap" role="tablist" aria-label="質問のカテゴリー">${tabsHtml()}</div>
-          <div class="search-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5"></circle><path d="m16 16 5 5"></path></svg><label class="sr-only" for="question-search">質問を探す</label><input type="search" id="question-search" placeholder="質問を探す（例：食べ物、空、赤色）" value="${escapeHTML(queryText)}"></div>
-          <div id="question-list" class="question-list">${list.html}</div>
         </div>
       </div>
       <div class="guess-dock"><div class="dock-copy"><strong>正体がわかった？</strong><small>${last?`${ANSWER[last.answer].short}　·　${game.asked.length} 個の質問済み`:'いつでも答えを入力できます'}</small></div><button type="button" class="primary-btn" id="open-guess">答えを入力 <span aria-hidden="true">↗</span></button></div>
@@ -225,11 +236,12 @@
     soundState();
     if(keepScroll)window.scrollTo({top:scroll,behavior:'instant'});
   }
-  function ask(id){
+    function ask(id){
     if(!game||game.finished||used(id))return;
     const q=DATA.questions[id];if(!q)return;
     const answer=answerFor(game.target,q);
     game.asked.push({id,answer});
+    choicePage=0;
     renderGame();
     playSound(answer);
     notice(`${q.text} → ${ANSWER[answer].short}`,answer);
@@ -317,14 +329,12 @@
     if(mode){gameMode=mode.dataset.mode;saveSettings();home();return;}
     if(e.target.closest('#start-game')){newGame();return;}
     if(e.target.closest('#return-home')){goHome();return;}
-    const tab=e.target.closest('[data-tab]');
-    if(tab){selectedTab=tab.dataset.tab;renderQuestionPanel();return;}
+    if(e.target.closest('#next-questions')){choicePage++;renderGame();return;}
     const q=e.target.closest('[data-question]');
     if(q){ask(Number(q.dataset.question));return;}
     if(e.target.closest('#open-guess')){openGuess();return;}
     if(e.target.closest('#open-reveal')){revealDialog.showModal();return;}
   });
-  app.addEventListener('input',e=>{if(e.target.id==='question-search'){queryText=e.target.value;renderQuestionPanel();}});
   document.getElementById('guess-form').addEventListener('submit',e=>{e.preventDefault();submitGuess(document.getElementById('guess-input').value);});
   document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>{
     const dlg=document.getElementById(button.dataset.close+'-dialog');if(dlg?.open)dlg.close();
