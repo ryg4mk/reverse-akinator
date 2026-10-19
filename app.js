@@ -87,10 +87,12 @@ function recommended() {
         description:'そのお題らしい特徴を聞いてみよう。ひらめいたら回答！'};
     }
 
-    // 絞り込めてもすぐに回答を強制しない。やさしいでは重要な特徴を出す。
-    if(n<=1 && (!easy || !personal)){
-      return {rows:[],page:0,pages:0,pageSize:4,phase:'答えが見えてきた！',
-        description:'これまでの答えから、名前を入力してみよう。'};
+    // 残りが1候補でも、答えを知らないプレイヤーには特徴を聞く機会を残す。
+    if(n<=1){
+      if(personal)return {rows:[personal],page:0,pages:1,pageSize:1,
+        phase:'最後のヒントです',description:'この特徴を質問したら、名前を考えてみよう。'};
+      return {rows:[],page:0,pages:0,pageSize:4,
+        phase:'答えが見えてきた！',description:'ここまでの質問を思い出して名前を入力しよう。'};
     }
 
     const groups={};
