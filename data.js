@@ -181,6 +181,33 @@
   add('まつぼっくり','🌰','nature',2,'tree small brown handheld','松ぼっくり|松かさ');
   add('きのこ','🍄','nature',2,'small forest edible brown','茸|キノコ');
 
+
+  // 細かな質問のための、明確に答えられる追加属性（お題名の漏えいには使用しない）。
+  const detailedTraits = {
+    laysEggs: ['ペンギン','ワシ','フクロウ','スズメ','カメ','カエル','ヘビ','ワニ','トカゲ','チョウ','カブトムシ','アリ','サメ','キンギョ','サケ','タコ','クラゲ','エビ','カニ'],
+    hasTail: ['ねこ','いぬ','うさぎ','ハムスター','パンダ','ライオン','トラ','ゾウ','キリン','サル','ゴリラ','コアラ','カンガルー','ウマ','ウシ','ブタ','ヒツジ','クマ','イルカ','クジラ','サメ','シャチ','ワシ','フクロウ','スズメ','カメ','ワニ','トカゲ','キンギョ','サケ'],
+    hasFins: ['イルカ','クジラ','サメ','シャチ','キンギョ','サケ'],
+    graspingHands: ['サル','ゴリラ'],
+    tusks: ['ゾウ'],
+    peelToEat: ['バナナ','みかん'],
+    hollowCenter: ['ドーナツ'],
+    filledInside: ['おにぎり','ぎょうざ'],
+    servedWithSoup: ['ラーメン','みそしる'],
+    usesCheese: ['ピザ'],
+    usesInternet: ['スマートフォン','パソコン'],
+    opensCloses: ['かさ','かばん','ノート','ほん','ドア'],
+    shinesLight: ['でんきスタンド'],
+    plugsIntoWall: ['テレビ','でんきスタンド','せんぷうき','エアコン','れいぞうこ','せんたくき'],
+    keyboardInstrument: ['ピアノ'],
+    fareMeter: ['タクシー'],
+    afterRain: ['にじ'],
+    prickly: ['サボテン'],
+    rootedPlant: ['はな','さくら','ひまわり','き','サボテン','たんぽぽ']
+  };
+  for (const [tag, names] of Object.entries(detailedTraits)) {
+    for (const item of words) if (names.includes(item.name)) item.tags.add(tag);
+  }
+
   // 全体にまたがる質問の回答を揃えるための共通属性補完。
   // 「自然のもの」は加工前の果物・野菜など、加工品は「人が作ったもの」で分類する。
   const cookedFoods = new Set(['おにぎり','すし','ラーメン','カレーライス','ピザ','ハンバーガー','サンドイッチ','パン','ごはん','チョコレート','ケーキ','アイスクリーム','ドーナツ','プリン','クッキー','たこやき','ぎょうざ','コーヒー','おちゃ','オレンジジュース','みそしる']);
@@ -309,9 +336,28 @@
     ['color','色・形','オレンジ色のイメージがありますか？','orange'],
     ['color','色・形','透明なイメージがありますか？','clear'],
     ['color','色・形','縞模様がありますか？','stripes'],
-    ['color','色・形','水玉・斑点模様がありますか？','spots']
+    ['color','色・形','水玉・斑点模様がありますか？','spots'],
+    ['animal','生き物','卵から生まれてきますか？','laysEggs'],
+    ['animal','生き物','しっぽがありますか？','hasTail'],
+    ['animal','生き物','ヒレがありますか？','hasFins'],
+    ['animal','生き物','手で物をつかむのが得意ですか？','graspingHands'],
+    ['animal','生き物','大きな牙がありますか？','tusks'],
+    ['food','食べ物','皮をむいて食べるイメージですか？','peelToEat'],
+    ['food','食べ物','真ん中に穴が開いていますか？','hollowCenter'],
+    ['food','食べ物','中に具材が包まれていますか？','filledInside'],
+    ['food','食べ物','汁やスープと一緒に食べますか？','servedWithSoup'],
+    ['food','食べ物','チーズが使われていますか？','usesCheese'],
+    ['object','道具・暮らし','インターネットにつないで使えますか？','usesInternet'],
+    ['object','道具・暮らし','開いたり閉じたりできますか？','opensCloses'],
+    ['object','道具・暮らし','周りを照らすための道具ですか？','shinesLight'],
+    ['object','道具・暮らし','コンセントにつないで使うことが多いですか？','plugsIntoWall'],
+    ['object','道具・暮らし','鍵盤を押して音を出しますか？','keyboardInstrument'],
+    ['vehicle','乗り物','料金メーターがついていますか？','fareMeter'],
+    ['nature','自然','雨上がりに見かけることが多いですか？','afterRain'],
+    ['nature','自然','トゲがありますか？','prickly'],
+    ['nature','自然','地面に根を張って育ちますか？','rootedPlant']
   ].map(([section,label,text,tag],id) => ({id,section,label,text,tag}));
 
   // 質問とお題の関係が成立するよう、曖昧さが出やすい属性は定義しない設計です。
-  window.REVERSE_DATA = Object.freeze({items: words, questions, version: '1.0.0'});
+  window.REVERSE_DATA = Object.freeze({items: words, questions, version: '1.1.0'});
 })();
