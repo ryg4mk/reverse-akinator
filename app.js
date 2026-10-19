@@ -59,71 +59,110 @@
   }
   function used(id) {return !!game?.asked.some(row=>row.id===id);}
 function recommended() {
-    if (!game) return {rows:[],page:0,pages:0,phase:'',description:''};
-    const remain = candidates();
-    const n=remain.length;
+    if(!game)return {rows:[],page:0,pages:0,pageSize:4,phase:'',description:''};
+    const remaining=candidates();
+    const n=remaining.length;
+    const count=game.asked.length;
+    const easy=game.difficulty===1;
+    const target=game.target;
+    const personal=DATA.questions.find(q=>q.signatureFor===target.id && !used(q.id));
+
+    // やさしい：まず一般的な質問を4回。5問目からはお題を連想しやすい質問を選べる。
+    // 正しいお題の質問を「毎回一番上」に置かないことで表示位置から答えが漏れないようにする。
+    if(easy && count>=4 && personal){
+      const remainingIds=new Set(remaining.map(x=>x.id));
+      const similar=DATA.questions.filter(q=>q.signatureFor!==undefined && q.signatureFor!==target.id
+        && !used(q.id) && q.section===target.group);
+      similar.sort((a,b)=>{
+        const aLive=remainingIds.has(a.signatureFor)?0:1;
+        const bLive=remainingIds.has(b.signatureFor)?0:1;
+        return aLive-bLive || Math.abs(a.signatureFor-target.id)-Math.abs(b.signatureFor-target.id);
+      });
+      const rows=[personal,...similar.slice(0,3)];
+      // stable mix; changing the attempted question changes the location of the decisive clue.
+      const shift=(target.id+count*3)%rows.length;
+      const ordered=rows.slice(shift).concat(rows.slice(0,shift));
+      return {rows:ordered,page:0,pages:1,pageSize:rows.length,
+        phase:'そろそろ正体がわかるかも？',
+        description:'そのお題らしい特徴を聞いてみよう。ひらめいたら回答！'};
+    }
+
+    // 絞り込めてもすぐに回答を強制しない。やさしいでは重要な特徴を出す。
+    if(n<=1 && (!easy || !personal)){
+      return {rows:[],page:0,pages:0,pageSize:4,phase:'答えが見えてきた！',
+        description:'これまでの答えから、名前を入力してみよう。'};
+    }
+
     const groups={};
-    for(const item of remain)groups[item.group]=(groups[item.group]||0)+1;
-    // 大分類 → 中分類 → 個別の特徴の順。序盤に色・形や専門的な質問は出さない。
-    const isStart=game.asked.length===0;
-    const early=game.asked.length<3;
-    const majorTags=new Set(['living','human','animal','food','manmade','object','plant','vehicle','natural']);
-    const middleTags=new Set([
-      ...majorTags,'electric','outdoor','water','sky','school','handheld','large','small',
+    for(const item of remaining)groups[item.group]=(groups[item.group]||0)+1;
+    const startRound=count===0;
+    const stage=startRound?'start':count===1?'broad':easy?(count<4?'middle':'detail')
+      :(count<3 && Object.keys(groups).length>1?'broad':(count<5&&n>8?'middle':'detail'));
+    const major=new Set(['living','human','animal','food','manmade','object','plant','vehicle','natural']);
+    const common=new Set([
+      ...major,'electric','outdoor','water','sky','school','handheld','large','small',
       'mammal','bird','insect','fish','reptile','pet','zoo','farm','sea','wings','swim',
       'fruit','vegetable','drink','dessert','hot','cold','sweet','salty','rice','noodles',
       'wearable','furniture','writing','kitchen','music','play','clean','screen',
       'road','rail','boat','wheels','publictransport','weather','landscape','tree','night',
-      'sport','hospital','emergency','stage','space'
+      'sport','hospital','emergency','stage','space','fur','four','round','long','buttons',
+      'photo','baked','japanesefood','green','red','yellow','white','black'
     ]);
-    let stage=isStart?'start':early && Object.keys(groups).length>1?'broad':(game.asked.length<5 && n>8)?'middle':'detail';
-    const phase=stage==='start'?'まずは大まかな質問から':stage==='broad'?'どんな種類かを確かめよう':stage==='middle'?'もう少し特徴を絞ろう':'詳しい特徴を聞いてみよう';
-    const description=stage==='start'?'生き物？ 人？ 食べ物？ まずは種類を探ろう。':stage==='broad'?'種類を確認したら、次は特徴を聞いてみよう。':stage==='middle'?'大分類が分かってきました。特徴から推理しよう。':'正解に近づく具体的な質問です。';
-    if(n<=1)return {rows:[],page:0,pages:0,phase:'答えが見えてきた！',description:'候補は十分絞れました。名前を入力して答えよう。'};
-    const scored=[];
-    const calc=(q)=>{
-      const counts={yes:0,no:0,maybe:0},bits=[];
-      for(const item of remain){const val=answerFor(item,q);counts[val]++;bits.push(val[0]);}
-      if(Object.values(counts).filter(v=>v>0).length<2)return;
-      let entropy=0;
-      for(const v of Object.values(counts))if(v){const p=v/n;entropy-=p*Math.log2(p);}
-      const related=q.section==='nature'?(groups.nature||0)+(groups.plant||0):(groups[q.section]||0);
-      if(q.section!=='all' && q.section!=='color' && related===0)return;
-      const bonus=(stage==='detail'&&q.section!=='all'&&q.section!=='color'?.17:0);
-      scored.push({q,score:entropy+bonus,signature:bits.join('')});
+    const phase=stage==='start'?'まずは大まかな質問から':stage==='broad'?'どんな種類かを確かめよう':
+      stage==='middle'?'身近な特徴を聞いてみよう':'詳しい特徴を聞いてみよう';
+    const description=stage==='start'?'生き物？ 人？ 食べ物？ まずは種類を探ろう。':
+      stage==='broad'?'どんな種類のお題なのか、探っていこう。':
+      stage==='middle'?'見た目や使い道など、わかりやすい質問をしよう。':
+      '細かな特徴を質問して正体に近づこう。';
+
+    const collect=(filter,includeClues)=>{
+      const scored=[];
+      for(const q of DATA.questions){
+        if(used(q.id))continue;
+        if(!includeClues && q.signatureFor!==undefined)continue;
+        if(filter && !filter.has(q.tag))continue;
+        if(q.section==='color' && n>9)continue;
+        const related=q.section==='nature'?(groups.nature||0)+(groups.plant||0):groups[q.section]||0;
+        if(q.section!=='all' && q.section!=='color' && !related)continue;
+        const counts={yes:0,no:0,maybe:0},signature=[];
+        for(const item of remaining){const v=answerFor(item,q);counts[v]++;signature.push(v[0]);}
+        if(Object.values(counts).filter(v=>v>0).length<=1)continue;
+        let entropy=0;
+        for(const v of Object.values(counts))if(v){const p=v/n;entropy-=p*Math.log2(p);}
+        const positive=easy&&answerFor(target,q)==='yes'?.35:0;
+        const bonus=stage==='detail'&&q.section!=='all'?.13:0;
+        scored.push({q,score:entropy+positive+bonus,signature:signature.join('')});
+      }
+      scored.sort((a,b)=>b.score-a.score || a.q.id-b.q.id);
+      return scored;
     };
-    let filter=stage==='start'?new Set(['living','human','food','manmade']):stage==='broad'?majorTags:stage==='middle'?middleTags:null;
-    for(const q of DATA.questions){
-      if(used(q.id))continue;
-      if(filter&&!filter.has(q.tag))continue;
-      if(stage==='detail'&&q.section==='color'&&n>9)continue;
-      calc(q);
+    const filter=stage==='start'?new Set(['living','human','food','manmade']):
+      stage==='broad'?major:stage==='middle'?common:null;
+    let scored=collect(filter,stage==='detail'&&!easy);
+    if(!scored.length && stage!=='detail')scored=collect(null,false);
+    if(!scored.length && personal&&!used(personal.id)){
+      return {rows:[personal],page:0,pages:1,pageSize:1,
+        phase:'大きなヒント！',description:'この特徴を聞いてみよう。'};
     }
-    // 他に分けられる大分類がない場合は早めに詳しい質問へ移る。
-    if(!scored.length && stage!=='detail'){
-      stage='detail';
-      for(const q of DATA.questions)if(!used(q.id))calc(q);
-    }
-    scored.sort((a,b)=>b.score-a.score || a.q.id-b.q.id);
-    const ordered=[];
-    const seen=new Set();
-    if(isStart){
+    const ordered=[],seen=new Set();
+    if(startRound){
       for(const tag of ['living','human','food','manmade']){
         const row=scored.find(x=>x.q.tag===tag);
         if(row&&!seen.has(row.signature)){seen.add(row.signature);ordered.push(row.q);}
       }
     }
-    for(const item of scored){
-      if(seen.has(item.signature))continue;
-      seen.add(item.signature);
-      ordered.push(item.q);
+    for(const entry of scored){
+      if(seen.has(entry.signature))continue;
+      seen.add(entry.signature);
+      ordered.push(entry.q);
     }
     const narrow=window.matchMedia('(max-width:760px)').matches;
     const height=window.innerHeight;
-    const pageSize=narrow && height<650 ? (height<530?2:3):4;
+    const pageSize=narrow&&height<650?(height<530?2:3):4;
     const pages=Math.ceil(ordered.length/pageSize);
-    const page=pages?(choicePage%pages):0;
-    return {rows:ordered.slice(page*pageSize,(page+1)*pageSize),page,pages,pageSize,phase,description};
+    const page=pages?choicePage%pages:0;
+    return {rows:ordered.slice(page*pageSize,(page+1)*pageSize),
+      page,pages,pageSize,phase,description};
   }
   function soundState(){document.getElementById('sound-toggle').innerHTML=sound?'♪':'♫';document.getElementById('sound-toggle').setAttribute('aria-label',sound?'サウンドをオフにする':'サウンドをオンにする');}
   function playSound(kind) {
