@@ -202,7 +202,13 @@
     fareMeter: ['タクシー'],
     afterRain: ['にじ'],
     prickly: ['サボテン'],
-    rootedPlant: ['はな','さくら','ひまわり','き','サボテン','たんぽぽ']
+    rootedPlant: ['はな','さくら','ひまわり','き','サボテン','たんぽぽ'],
+    purrs: ['ねこ'],
+    forkTines: ['フォーク'],
+    freightTruck: ['トラック'],
+    frozenFood: ['アイスクリーム'],
+    expressRail: ['しんかんせん'],
+    waterfallDrop: ['たき']
   };
   for (const [tag, names] of Object.entries(detailedTraits)) {
     for (const item of words) if (names.includes(item.name)) item.tags.add(tag);
@@ -355,9 +361,15 @@
     ['vehicle','乗り物','料金メーターがついていますか？','fareMeter'],
     ['nature','自然','雨上がりに見かけることが多いですか？','afterRain'],
     ['nature','自然','トゲがありますか？','prickly'],
-    ['nature','自然','地面に根を張って育ちますか？','rootedPlant']
+    ['nature','自然','地面に根を張って育ちますか？','rootedPlant'],
+    ['animal','生き物','のどをゴロゴロ鳴らしますか？','purrs'],
+    ['object','道具・暮らし','先がいくつかに分かれていますか？','forkTines'],
+    ['vehicle','乗り物','荷物を運ぶために作られた車ですか？','freightTruck'],
+    ['food','食べ物','凍った状態で食べるものですか？','frozenFood'],
+    ['vehicle','乗り物','高速で長距離を走る列車ですか？','expressRail'],
+    ['nature','自然','高いところから水が流れ落ちていますか？','waterfallDrop']
   ].map(([section,label,text,tag],id) => ({id,section,label,text,tag}));
 
   // 質問とお題の関係が成立するよう、曖昧さが出やすい属性は定義しない設計です。
-  window.REVERSE_DATA = Object.freeze({items: words, questions, version: '1.1.0'});
+  window.REVERSE_DATA = Object.freeze({items: words, questions, version: '1.2.0'});
 })();
