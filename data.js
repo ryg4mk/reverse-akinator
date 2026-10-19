@@ -566,7 +566,7 @@
   for (let i = 0; i < words.length; i++) {
     const tag = 'signature_' + i;
     words[i].tags.add(tag);
-    questions.push({ id: questions.length, section: words[i].group, label: '決め手', text: signatureClues[i], tag, signatureFor: i });
+    questions.push({ id: questions.length, section: words[i].group, label: '特徴', text: signatureClues[i], tag, signatureFor: i });
   }
 
   // 質問とお題の関係が成立するよう、曖昧さが出やすい属性は定義しない設計です。
