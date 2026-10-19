@@ -4,6 +4,7 @@
   // 属性は、質問に対して明確に「はい」と答えられる特徴だけを記録します。
   const defaults = {
     animal: 'living animal natural moving outdoor',
+    person: 'living human person moving work adult',
     food: 'food edible',
     object: 'manmade object',
     vehicle: 'manmade vehicle ride outdoor',
@@ -183,6 +184,20 @@
 
 
   // 細かな質問のための、明確に答えられる追加属性（お題名の漏えいには使用しない）。
+
+  // 人物・職業：『人ですか？』にも「はい」と答えるお題を追加。
+  // 実在の特定個人ではなく、誰でも知っている職業を題材にする。
+  add('医者','🩺','person',1,'hospital medicine examine help whitecoat','お医者さん|医師|ドクター');
+  add('看護師','💉','person',2,'hospital medicine care help whitecoat','看護婦|ナース|看護師さん');
+  add('先生','👩‍🏫','person',1,'school teach children education','教師|学校の先生|教員');
+  add('消防士','🚒','person',1,'emergency fire rescue uniform','消防隊員|ファイヤーファイター');
+  add('警察官','👮','person',1,'emergency police law uniform','警察|おまわりさん|警官');
+  add('料理人','👨‍🍳','person',1,'cook kitchen foodjob chef','シェフ|コック|調理師');
+  add('歌手','🎤','person',1,'music sing stage entertainment','シンガー|ボーカリスト');
+  add('俳優','🎭','person',2,'acting stage entertainment movie','女優|役者');
+  add('宇宙飛行士','🧑‍🚀','person',2,'space astronaut suit science','アストロノート');
+  add('サッカー選手','⚽','person',1,'sport soccer athlete ball outdoor','プロサッカー選手|サッカープレーヤー');
+
   const detailedTraits = {
     laysEggs: ['ペンギン','ワシ','フクロウ','スズメ','カメ','カエル','ヘビ','ワニ','トカゲ','チョウ','カブトムシ','アリ','サメ','キンギョ','サケ','タコ','クラゲ','エビ','カニ'],
     hasTail: ['ねこ','いぬ','うさぎ','ハムスター','パンダ','ライオン','トラ','ゾウ','キリン','サル','ゴリラ','コアラ','カンガルー','ウマ','ウシ','ブタ','ヒツジ','クマ','イルカ','クジラ','サメ','シャチ','ワシ','フクロウ','スズメ','カメ','ワニ','トカゲ','キンギョ','サケ'],
@@ -237,8 +252,10 @@
 
   const questions = [
     ['all','基本','生き物ですか？','living'],
+    ['all','基本','人ですか？','human'],
     ['all','基本','食べ物・飲み物ですか？','food'],
     ['all','基本','人の手で作られたものですか？','manmade'],
+    ['all','基本','日常で使う道具ですか？','object'],
     ['all','基本','動物ですか？','animal'],
     ['all','基本','植物ですか？','plant'],
     ['all','基本','乗り物ですか？','vehicle'],
@@ -367,9 +384,21 @@
     ['vehicle','乗り物','荷物を運ぶために作られた車ですか？','freightTruck'],
     ['food','食べ物','凍った状態で食べるものですか？','frozenFood'],
     ['vehicle','乗り物','高速で長距離を走る列車ですか？','expressRail'],
-    ['nature','自然','高いところから水が流れ落ちていますか？','waterfallDrop']
+    ['nature','自然','高いところから水が流れ落ちていますか？','waterfallDrop'],
+    ['person','人物','病院で働く仕事ですか？','hospital'],
+    ['person','人物','学校で教える仕事ですか？','teach'],
+    ['person','人物','病気やけがの診察をしますか？','examine'],
+    ['person','人物','看病やケアをする仕事ですか？','care'],
+    ['person','人物','緊急時に人を助ける仕事ですか？','emergency'],
+    ['person','人物','火事の現場で活躍しますか？','fire'],
+    ['person','人物','法律や治安を守る仕事ですか？','police'],
+    ['person','人物','料理を作る仕事ですか？','foodjob'],
+    ['person','人物','歌うことが仕事ですか？','sing'],
+    ['person','人物','映画やドラマなどで演じますか？','acting'],
+    ['person','人物','宇宙に行くための訓練をしますか？','astronaut'],
+    ['person','人物','球技のプロ選手ですか？','soccer']
   ].map(([section,label,text,tag],id) => ({id,section,label,text,tag}));
 
   // 質問とお題の関係が成立するよう、曖昧さが出やすい属性は定義しない設計です。
-  window.REVERSE_DATA = Object.freeze({items: words, questions, version: '1.2.0'});
+  window.REVERSE_DATA = Object.freeze({items: words, questions, version: '1.3.0'});
 })();
