@@ -365,6 +365,20 @@ function recommended() {
     if(e.target.closest('#result-close')){goHome();}
   });
   document.getElementById('brand-link').addEventListener('click',e=>{e.preventDefault();goHome();});
+
+  // 縦横切替時に表示する選択肢数を見直す。キーボード表示中はゲーム画面を再構築しない。
+  const visibleCount=()=>window.matchMedia('(max-width:760px)').matches?(window.innerHeight<530?2:window.innerHeight<650?3:4):4;
+  let previousVisibleCount=visibleCount();
+  window.addEventListener('resize',()=>{
+    const next=visibleCount();
+    if(next===previousVisibleCount)return;
+    previousVisibleCount=next;
+    if(game&&!game.finished&&!guessDialog.open&&!resultDialog.open&&!revealDialog.open&&!historyDialog.open){
+      choicePage=0;
+      renderGame(false);
+    }
+  });
+
   // Prevent accidental dismissal of the completed-round dialog via backdrop or Escape.
   resultDialog.addEventListener('cancel', e=>{e.preventDefault();goHome();});
   resultDialog.addEventListener('click',e=>{if(e.target===resultDialog)goHome();});
