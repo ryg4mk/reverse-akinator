@@ -272,3 +272,44 @@ dialog.history-dialog .empty-history{padding:25px 0;font-size:14px}
   body.playing .game-main{gap:4px}
   body.playing .question-zone{padding:6px}
 }
+
+/* 低い横長画面・狭いブラウザにも対応 */
+@media(max-height:520px) and (min-width:761px){
+  body:not(.playing) .preview-side{display:none}
+  body:not(.playing) .landing{display:flex;justify-content:center;align-items:center}
+  body:not(.playing) .intro-copy{width:min(560px,100%);padding:0}
+  body:not(.playing) .landing h1{font-size:clamp(27px,5vw,39px);margin:7px 0}
+  body:not(.playing) .lead{font-size:11px;line-height:1.35;margin-bottom:7px}
+  body:not(.playing) .selection-label{margin-bottom:5px}
+  body:not(.playing) .difficulty-grid{margin-bottom:7px}
+  body:not(.playing) .difficulty{min-height:43px;padding:5px 9px}
+  body:not(.playing) .difficulty small{font-size:9px}
+  body:not(.playing) .mode-select{margin:0 0 7px}
+  body:not(.playing) #start-game{min-height:38px;padding:8px 15px}
+  body.playing .mystery-panel{padding:8px;gap:7px}
+  body.playing .mystery-orb{width:34px;height:34px;font-size:22px}
+  body.playing .mystery-name strong{font-size:13px}
+  body.playing .mystery-metrics{gap:4px;font-size:10px}
+  body.playing .mystery-answer{min-height:56px;padding:8px;gap:4px}
+  body.playing .mystery-answer strong{font-size:16px}
+  body.playing .question-zone{padding:9px}
+  body.playing .adaptive-intro{margin-bottom:5px}
+  body.playing .adaptive-intro p{display:none}
+  body.playing .game-bottom{height:42px}
+}
+@media(max-width:760px) and (max-height:490px){
+  body:not(.playing) .landing h1{font-size:30px;margin:6px 0}
+  body:not(.playing) .lead{font-size:11px;line-height:1.35;margin-bottom:7px}
+  body:not(.playing) .selection-label{margin-bottom:6px}
+  body:not(.playing) .difficulty-grid{margin-bottom:7px}
+  body:not(.playing) .difficulty{min-height:42px;padding:6px}
+  body:not(.playing) .mode-select{margin:0 0 7px}
+  body:not(.playing) #start-game{min-height:40px;padding:8px 12px}
+  body.playing .mystery-metrics{display:none}
+  body.playing .mystery-identity{gap:5px}
+  body.playing .mystery-answer span{display:none}
+  body.playing .mystery-answer{justify-content:center}
+  body.playing .question-zone{padding:5px}
+  body.playing .adaptive-intro h2{font-size:13px}
+}
+body.playing .game-shell{padding-bottom:max(9px,env(safe-area-inset-bottom,0px))}
