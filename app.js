@@ -67,7 +67,6 @@ function recommended() {
     // 大分類 → 中分類 → 個別の特徴の順。序盤に色・形や専門的な質問は出さない。
     const isStart=game.asked.length===0;
     const early=game.asked.length<3;
-    const middle=game.asked.length<5 && n>12;
     const majorTags=new Set(['living','human','animal','food','manmade','object','plant','vehicle','natural']);
     const middleTags=new Set([
       ...majorTags,'electric','outdoor','water','sky','school','handheld','large','small',
@@ -77,7 +76,7 @@ function recommended() {
       'road','rail','boat','wheels','publictransport','weather','landscape','tree','night',
       'sport','hospital','emergency','stage','space'
     ]);
-    let stage=isStart?'start':early?'broad':middle?'middle':'detail';
+    let stage=isStart?'start':early && Object.keys(groups).length>1?'broad':(game.asked.length<5 && n>8)?'middle':'detail';
     const phase=stage==='start'?'まずは大まかな質問から':stage==='broad'?'どんな種類かを確かめよう':stage==='middle'?'もう少し特徴を絞ろう':'詳しい特徴を聞いてみよう';
     const description=stage==='start'?'生き物？ 人？ 食べ物？ まずは種類を探ろう。':stage==='broad'?'種類を確認したら、次は特徴を聞いてみよう。':stage==='middle'?'大分類が分かってきました。特徴から推理しよう。':'正解に近づく具体的な質問です。';
     if(n<=1)return {rows:[],page:0,pages:0,phase:'答えが見えてきた！',description:'候補は十分絞れました。名前を入力して答えよう。'};
