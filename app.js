@@ -190,7 +190,7 @@ function recommended() {
   function home() {
     document.body.classList.remove('playing');
     game=null;
-    const options=[['やさしい','定番のお題',1],['ふつう','少し幅広く',2],['むずかしい','全お題から',3]];
+    const options=[['やさしい','強いヒントで推理',1],['ふつう','少し幅広く',2],['むずかしい','全お題から',3]];
     app.innerHTML=`
       <section class="landing">
         <div class="intro-copy">
