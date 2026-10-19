@@ -124,7 +124,7 @@ function recommended() {
     const pageSize=narrow && height<650 ? (height<530?2:3):4;
     const pages=Math.ceil(ordered.length/pageSize);
     const page=pages?(choicePage%pages):0;
-    return {rows:ordered.slice(page*pageSize,(page+1)*pageSize),page,pages,phase,description};
+    return {rows:ordered.slice(page*pageSize,(page+1)*pageSize),page,pages,pageSize,phase,description};
   }
   function soundState(){document.getElementById('sound-toggle').innerHTML=sound?'♪':'♫';document.getElementById('sound-toggle').setAttribute('aria-label',sound?'サウンドをオフにする':'サウンドをオンにする');}
   function playSound(kind) {
@@ -229,7 +229,7 @@ function recommended() {
       <span class="step-chip">Q ${String(game.asked.length+1).padStart(2,'0')}</span></div>`;
     if(!plan.rows.length)return head+`<div class="adaptive-empty"><strong>ひらめいたら答えてみよう！</strong><p>名前を入力してみてください。</p><button type="button" class="secondary-btn" id="open-guess">答えを入力する ↗</button></div>`;
     return head+`<div class="recommended adaptive-questions" style="--question-rows:${plan.rows.length};--question-grid-rows:${Math.ceil(plan.rows.length/2)}" aria-label="今選べる質問">
-      ${plan.rows.map((q,i)=>`<button type="button" class="recommended-button" data-question="${q.id}"><span class="qtop"><span>${String(plan.page*4+i+1).padStart(2,'0')} · ${escapeHTML(q.label)}</span><span aria-hidden="true">↗</span></span><span class="qtext">${escapeHTML(q.text)}</span></button>`).join('')}
+      ${plan.rows.map((q,i)=>`<button type="button" class="recommended-button" data-question="${q.id}"><span class="qtop"><span>${String(plan.page*plan.pageSize+i+1).padStart(2,'0')} · ${escapeHTML(q.label)}</span><span aria-hidden="true">↗</span></span><span class="qtext">${escapeHTML(q.text)}</span></button>`).join('')}
     </div><div class="adaptive-bottom"><span class="adaptive-hint">選ぶと次の質問に切り替わります</span>
     ${plan.pages>1?`<button type="button" class="more-questions" id="next-questions">ほかの質問 ↻</button>`:''}</div>`;
   }
