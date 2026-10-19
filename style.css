@@ -86,3 +86,42 @@ dialog.modal::backdrop{background:#040711cc;backdrop-filter:blur(9px)}.modal-top
 @media(max-width:760px){.topbar{height:76px}.site-shell{width:calc(100% - 32px)}.landing{padding:38px 0 0;grid-template-columns:1fr;min-height:unset;gap:0}.intro-copy{order:1}.preview-side{order:0;min-height:250px}.orbit-illustration{width:260px}.oracle-orb span{font-size:115px}.floating-tag{font-size:10px;padding:8px 10px}.floating-tag.yes{left:-15px}.floating-tag.no{right:-23px}.showcase-caption{display:none}.landing h1{font-size:clamp(42px,9vw,61px);margin:13px 0 15px}.landing .lead{font-size:14px;line-height:1.85;margin-bottom:22px}.howto{margin-bottom:25px}.feature-row{margin:38px 0 0}.game-shell{padding-top:18px}.game-layout{display:block}.left-column{position:static}.mini-orb-wrap{height:183px}.mini-orb-wrap::before{height:173px;width:173px}.mini-orb{width:141px;height:141px}.mini-orb b{font-size:92px}.mini-orb-wrap::after{top:18px;right:22%}.secret-card{padding:18px}.oracle-quote{min-height:73px;margin-bottom:15px}.history-card{margin-bottom:24px}.history-list{max-height:180px}.section-heading{margin-top:9px}.question-zone{margin-top:26px}.question-list{grid-template-columns:repeat(2,minmax(0,1fr))}.guess-dock{bottom:12px;margin-top:22px}.site-footer{margin-top:28px}}
 @media(max-width:480px){.brand-icon{height:38px;width:38px;border-radius:12px}.brand-copy strong{font-size:16px}.brand-copy small{font-size:8px}.version-chip{font-size:8px;padding:7px 8px;letter-spacing:.04em}.header-right{gap:7px}.icon-button{width:38px;height:38px}.landing h1{font-size:clamp(39px,10vw,53px)}.difficulty{padding:12px 9px;min-height:68px}.difficulty strong{font-size:12px}.difficulty small{font-size:10px}.feature-row{grid-template-columns:1fr;gap:8px}.feature-card{padding:12px 16px;align-items:center}.feature-card p{line-height:1.5}.howto span{font-size:10px;padding:7px 10px}.preview-side{min-height:248px}.reco-topline{font-size:10px}.recommended-button{min-height:102px;padding:12px 11px 12px 13px}.recommended-button .qtext{font-size:12px}.recommended-button .qtop{font-size:9px}.section-heading h2{font-size:22px}.question-list{grid-template-columns:1fr}.question-button{min-height:52px;padding:12px 14px}.library-header p{font-size:10px}.guess-dock{padding:11px;border-radius:15px;gap:7px}.guess-dock .dock-copy strong{font-size:12px}.guess-dock .dock-copy small{font-size:10px;max-width:140px}.guess-dock .primary-btn{font-size:12px;padding:11px 12px}.game-crumb strong{font-size:12px}.site-footer{font-size:10px;flex-wrap:wrap}.site-footer>span{width:100%}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+/* v1.1: 選択肢だけを提示する動的質問画面 */
+.adaptive-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:2px 0 23px}
+.adaptive-intro h2{font-size:clamp(21px,2.5vw,28px);letter-spacing:-.04em;line-height:1.4;margin:11px 0 8px}
+.adaptive-intro p{font-size:13px;line-height:1.9;color:var(--sub);margin:0;max-width:510px}
+.step-chip{display:inline-flex;align-items:center;flex-shrink:0;color:var(--mint);border:1px solid #68eed753;border-radius:99px;background:#6cf1d612;padding:9px 13px;font-size:10px;font-weight:850;letter-spacing:.07em;white-space:nowrap}
+.adaptive-questions{margin:0;align-items:stretch}
+.adaptive-questions .recommended-button{min-height:130px;background:linear-gradient(150deg,#2b2547,#1b2241);border-color:#816fac72}
+.adaptive-questions .recommended-button:first-child{border-color:#bba0ffb8;background:linear-gradient(140deg,#3b2c62,#242342);box-shadow:inset 0 0 0 1px #bba0ff16}
+.adaptive-questions .recommended-button:first-child .qtop{color:#d6c7ff}
+.adaptive-questions .recommended-button .qtext{font-size:clamp(13px,1.22vw,17px);min-height:auto}
+.adaptive-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:17px;flex-wrap:wrap}
+.adaptive-hint{font-size:11px;color:var(--muted);line-height:1.6}
+.more-questions{display:inline-flex;gap:10px;align-items:center;justify-content:center;background:#211d39;color:#d6c6ff;border:1px solid #9e86e16b;border-radius:99px;padding:10px 17px;font-size:12px;font-weight:850;min-height:44px}
+.more-questions:hover{border-color:var(--violet);background:#32284b}
+.more-questions span{font-size:17px;color:var(--mint)}
+.adaptive-empty{border:1px dashed #9076c68c;border-radius:20px;background:linear-gradient(150deg,#24213b,#161c30);padding:40px 18px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:13px}
+.adaptive-empty>span{font-size:38px;color:var(--mint)}
+.adaptive-empty strong{font-size:19px}
+.adaptive-empty p{color:var(--sub);font-size:12px;line-height:1.75;margin:0 0 7px}
+.adaptive-empty .secondary-btn{min-height:46px;font-size:13px}
+@media(max-width:760px){
+  .adaptive-intro{margin-top:8px}
+  .adaptive-questions .recommended-button{min-height:112px}
+  .adaptive-questions .recommended-button .qtext{font-size:14px}
+  .adaptive-bottom{margin-bottom:7px}
+}
+@media(max-width:480px){
+  .adaptive-intro{display:block;margin-bottom:16px}
+  .adaptive-intro p{font-size:12px}
+  .step-chip{margin-top:12px;padding:6px 10px;font-size:9px}
+  .adaptive-questions{grid-template-columns:1fr;gap:9px}
+  .adaptive-questions .recommended-button{min-height:86px;padding:12px 15px}
+  .adaptive-questions .recommended-button .qtext{font-size:14px}
+  .adaptive-questions .recommended-button .qtop{font-size:10px}
+  .adaptive-questions .recommended-button .qtext{line-height:1.45}
+  .more-questions{width:100%}
+  .adaptive-hint{width:100%}
+}
