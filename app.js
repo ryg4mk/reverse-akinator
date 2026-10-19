@@ -10,6 +10,7 @@
   const guessDialog = document.getElementById('guess-dialog');
   const resultDialog = document.getElementById('result-dialog');
   const revealDialog = document.getElementById('reveal-dialog');
+  const historyDialog = document.getElementById('history-dialog');
   const toastNode = document.getElementById('toast');
   const statKey = 'reverse_akinator_stats_v1';
   const settingsKey = 'reverse_akinator_settings_v1';
@@ -58,59 +59,74 @@
   }
   function used(id) {return !!game?.asked.some(row=>row.id===id);}
 function recommended() {
-    if (!game) return {rows:[], page:0, pages:0, phase:'', description:''};
-    const remaining = candidates();
-    const total = poolFor(game.difficulty).length;
-    const n = remaining.length;
-    const groups = {};
-    for (const item of remaining) groups[item.group] = (groups[item.group] || 0) + 1;
-    const largest = Math.max(0,...Object.values(groups));
-    const leadShare = n ? largest/n : 0;
-    const broad = game.asked.length === 0 || (n > 24 && leadShare < .60 && game.asked.length < 5);
-    const phase = broad ? 'まずは大きな特徴から' : n > 14 ? '特徴をもう少し詳しく' : 'かなり絞れてきました';
-    const description = broad
-      ? '今の状況に合う質問を選んでみよう。回答に合わせて次の質問が変わります。'
-      : n > 14 ? 'これまでの答えをもとに、より具体的な質問を用意しました。'
-      : '違いが出やすい細かな質問です。答えに自信があれば、そのまま回答してもOK！';
-    if (n <= 1) return {rows:[],page:0,pages:0,phase:'もう少しで正解！',description:'質問でこれ以上絞り込めません。思いついた名前を入力してみよう。'};
-    const scored = [];
-    for (const q of DATA.questions) {
-      if (used(q.id)) continue;
-      if (broad && q.section !== 'all') continue;
-      if (!broad && q.section !== 'all' && q.section !== 'color') {
-        const related = q.section === 'nature' ? (groups.nature||0)+(groups.plant||0) : (groups[q.section]||0);
-        if (related / n < (n <= 12 ? .08 : .19)) continue;
-      }
-      if (q.section === 'color' && (broad || n > 18)) continue;
-      let entropy = 0;
-      const counts = {yes:0,no:0,maybe:0};
-      const signature=[];
-      for (const item of remaining) {
-        const a=answerFor(item,q);
-        counts[a]++;
-        signature.push(a[0]);
-      }
-      if (Object.values(counts).filter(x=>x>0).length <= 1) continue;
-      for (const c of Object.values(counts)) if(c){const p=c/n;entropy-=p*Math.log2(p);}
-      const categoryBonus = !broad && q.section !== 'all' ? .16 : 0;
-      const shapePenalty = q.section === 'color' && n > 7 ? .23 : 0;
-      const score = entropy * 3 + categoryBonus - shapePenalty;
-      scored.push({q,score,signature:signature.join('')});
+    if (!game) return {rows:[],page:0,pages:0,phase:'',description:''};
+    const remain = candidates();
+    const n=remain.length;
+    const groups={};
+    for(const item of remain)groups[item.group]=(groups[item.group]||0)+1;
+    // 大分類 → 中分類 → 個別の特徴の順。序盤に色・形や専門的な質問は出さない。
+    const isStart=game.asked.length===0;
+    const early=game.asked.length<3;
+    const middle=game.asked.length<5 && n>12;
+    const majorTags=new Set(['living','human','animal','food','manmade','object','plant','vehicle','natural']);
+    const middleTags=new Set([
+      ...majorTags,'electric','outdoor','water','sky','school','handheld','large','small',
+      'mammal','bird','insect','fish','reptile','pet','zoo','farm','sea','wings','swim',
+      'fruit','vegetable','drink','dessert','hot','cold','sweet','salty','rice','noodles',
+      'wearable','furniture','writing','kitchen','music','play','clean','screen',
+      'road','rail','boat','wheels','publictransport','weather','landscape','tree','night',
+      'sport','hospital','emergency','stage','space'
+    ]);
+    let stage=isStart?'start':early?'broad':middle?'middle':'detail';
+    const phase=stage==='start'?'まずは大まかな質問から':stage==='broad'?'どんな種類かを確かめよう':stage==='middle'?'もう少し特徴を絞ろう':'詳しい特徴を聞いてみよう';
+    const description=stage==='start'?'生き物？ 人？ 食べ物？ まずは種類を探ろう。':stage==='broad'?'種類を確認したら、次は特徴を聞いてみよう。':stage==='middle'?'大分類が分かってきました。特徴から推理しよう。':'正解に近づく具体的な質問です。';
+    if(n<=1)return {rows:[],page:0,pages:0,phase:'答えが見えてきた！',description:'候補は十分絞れました。名前を入力して答えよう。'};
+    const scored=[];
+    const calc=(q)=>{
+      const counts={yes:0,no:0,maybe:0},bits=[];
+      for(const item of remain){const val=answerFor(item,q);counts[val]++;bits.push(val[0]);}
+      if(Object.values(counts).filter(v=>v>0).length<2)return;
+      let entropy=0;
+      for(const v of Object.values(counts))if(v){const p=v/n;entropy-=p*Math.log2(p);}
+      const related=q.section==='nature'?(groups.nature||0)+(groups.plant||0):(groups[q.section]||0);
+      if(q.section!=='all' && q.section!=='color' && related===0)return;
+      const bonus=(stage==='detail'&&q.section!=='all'&&q.section!=='color'?.17:0);
+      scored.push({q,score:entropy+bonus,signature:bits.join('')});
+    };
+    let filter=stage==='start'?new Set(['living','human','food','manmade']):stage==='broad'?majorTags:stage==='middle'?middleTags:null;
+    for(const q of DATA.questions){
+      if(used(q.id))continue;
+      if(filter&&!filter.has(q.tag))continue;
+      if(stage==='detail'&&q.section==='color'&&n>9)continue;
+      calc(q);
+    }
+    // 他に分けられる大分類がない場合は早めに詳しい質問へ移る。
+    if(!scored.length && stage!=='detail'){
+      stage='detail';
+      for(const q of DATA.questions)if(!used(q.id))calc(q);
     }
     scored.sort((a,b)=>b.score-a.score || a.q.id-b.q.id);
-    // 同じ分け方をする質問を何度も見せず、質問の意味が変わる選択肢を優先。
-    const unique=[];
-    const signatures=new Set();
-    for(const entry of scored){
-      if(signatures.has(entry.signature))continue;
-      signatures.add(entry.signature);
-      unique.push(entry.q);
+    const ordered=[];
+    const seen=new Set();
+    if(isStart){
+      for(const tag of ['living','human','food','manmade']){
+        const row=scored.find(x=>x.q.tag===tag);
+        if(row&&!seen.has(row.signature)){seen.add(row.signature);ordered.push(row.q);}
+      }
     }
-    const pages=Math.ceil(unique.length/4);
-    const page=pages?choicePage%pages:0;
-    return {rows:unique.slice(page*4,(page+1)*4),page,pages,phase,description};
+    for(const item of scored){
+      if(seen.has(item.signature))continue;
+      seen.add(item.signature);
+      ordered.push(item.q);
+    }
+    const narrow=window.matchMedia('(max-width:760px)').matches;
+    const height=window.innerHeight;
+    const pageSize=narrow && height<650 ? (height<530?2:3):4;
+    const pages=Math.ceil(ordered.length/pageSize);
+    const page=pages?(choicePage%pages):0;
+    return {rows:ordered.slice(page*pageSize,(page+1)*pageSize),page,pages,phase,description};
   }
-    function soundState(){document.getElementById('sound-toggle').innerHTML=sound?'♪':'♫';document.getElementById('sound-toggle').setAttribute('aria-label',sound?'サウンドをオフにする':'サウンドをオンにする');}
+  function soundState(){document.getElementById('sound-toggle').innerHTML=sound?'♪':'♫';document.getElementById('sound-toggle').setAttribute('aria-label',sound?'サウンドをオフにする':'サウンドをオンにする');}
   function playSound(kind) {
     if(!sound)return;
     try{
@@ -134,6 +150,7 @@ function recommended() {
     clearTimeout(toastTimer);toastTimer=setTimeout(()=>{toastNode.className='';},2600);
   }
   function home() {
+    document.body.classList.remove('playing');
     game=null;
     const options=[['やさしい','定番のお題',1],['ふつう','少し幅広く',2],['むずかしい','全お題から',3]];
     app.innerHTML=`
@@ -182,61 +199,59 @@ function recommended() {
     window.scrollTo({top:0,behavior:'instant'});
   }
   function statsHtml(){
-    if(!game)return '';
-    const total=poolFor(game.difficulty).length;
-    const remaining=candidates().length;
-    const progress = Math.max(0,Math.min(100,Math.round((1-remaining/total)*100)));
-    const latest = game.asked.at(-1);
-    const a=latest?ANSWER[latest.answer]:null;
-    const qq=latest?DATA.questions[latest.id]:null;
-    return `<div class="secret-card">
-      <div class="card-header"><span class="tiny-upper">HIDDEN IDENTITY</span><span class="puzzle-id">${game.mode==='daily'?'DAILY':'MYSTERY'} #${String(game.target.id+1).padStart(3,'0').replace(/\d/g,'?')}</span></div>
-      <div class="mini-orb-wrap"><div class="mini-orb"><b>?</b></div></div>
-      <div class="oracle-label">わたしは <span>何でしょう？</span></div>
-      <div class="oracle-quote" aria-live="polite"><small>${qq?escapeHTML(qq.text):'お題はもう決めました。'}</small><strong class="${a?'reply-'+a.css:'reply-idle'}">${a?a.text:'あなたの質問を待っています…'}</strong></div>
-      <div class="metrics"><div class="metric"><span>質問</span><strong>${game.asked.length}<small> 回</small></strong></div><div class="metric"><span>ミス</span><strong>${game.misses.length}<small> 回</small></strong></div><div class="metric"><span>予想スコア</span><strong>${score().toLocaleString('ja-JP')}</strong></div></div>
-      <div class="progress-track" role="progressbar" aria-label="推理の進み具合" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width:${progress}%"></div></div>
-      <div class="progress-label"><span>手がかりを集めよう</span><span>絞り込みの目安 <strong>${progress}%</strong></span></div>
+    const last=game.asked.at(-1);
+    const q=last?DATA.questions[last.id]:null;
+    const a=last?ANSWER[last.answer]:null;
+    return `<div class="mystery-panel">
+      <div class="mystery-identity">
+        <span class="mystery-orb" aria-hidden="true">?</span>
+        <div class="mystery-name"><small>SECRET IDENTITY</small><strong>わたしは何でしょう？</strong></div>
+        <div class="mystery-metrics"><span>質問 <b>${game.asked.length}</b></span><span>ミス <b>${game.misses.length}</b></span><span>${score().toLocaleString('ja-JP')} pt</span></div>
+      </div>
+      <div class="mystery-answer" aria-live="polite">
+        <span>${q?escapeHTML(q.text):'質問を選んでください'}</span>
+        <strong class="${a?'reply-'+a.css:'reply-idle'}">${a?a.short:'さあ、はじめよう！'}</strong>
+      </div>
     </div>`;
   }
   function historyHtml(){
-    const rec=game.asked.slice(-7).reverse();
-    return `<div class="history-card"><div class="history-title"><strong>これまでの質問</strong><span>${game.asked.length} 件</span></div>
-      ${rec.length?`<ol class="history-list">${rec.map((row,i)=>`<li class="history-entry"><span class="history-number">${String(game.asked.length-i).padStart(2,'0')}</span><span class="history-question">${escapeHTML(DATA.questions[row.id].text)}</span><span class="answer-pill ${row.answer==='yes'?'':row.answer}">${ANSWER[row.answer].short}</span></li>`).join('')}</ol>`:`<div class="empty-history">まだ質問はありません。<br>右の質問をタップしてみよう。</div>`}
-    </div><div class="left-actions"><button type="button" class="link-button" id="open-reveal">◌ 答えを見る（ギブアップ）</button></div>`;
+    const rec=game.asked.slice().reverse();
+    return `<div class="history-dialog-content">
+      <div class="modal-top"><span class="eyebrow">QUESTION HISTORY</span><button type="button" class="close-button" id="history-close" aria-label="閉じる">×</button></div>
+      <h2>質問の履歴 <span>${rec.length}件</span></h2>
+      ${rec.length?`<ol class="history-list">${rec.map((row,i)=>`<li class="history-entry"><span class="history-number">${String(game.asked.length-i).padStart(2,'0')}</span><span class="history-question">${escapeHTML(DATA.questions[row.id].text)}</span><span class="answer-pill ${row.answer==='yes'?'':row.answer}">${ANSWER[row.answer].short}</span></li>`).join('')}</ol>`:'<div class="empty-history">まだ質問はありません。</div>'}
+    </div>`;
   }
-function recommendedHtml() {
+  function recommendedHtml(){
     const plan=recommended();
-    const head=`<div class="adaptive-intro">
-      <div><span class="eyebrow">CHOOSE YOUR QUESTION</span><h2>${escapeHTML(plan.phase)}</h2>
-      <p>${escapeHTML(plan.description)}</p></div>
-      <span class="step-chip">QUESTION ${String(game.asked.length+1).padStart(2,'0')}</span>
-    </div>`;
-    if(!plan.rows.length) return head+`<div class="adaptive-empty"><span aria-hidden="true">✦</span><strong>ひらめいたら答えてみよう！</strong><p>有効な新しい質問はありません。正体を推理して回答しましょう。</p><button type="button" class="secondary-btn" id="open-guess">答えを入力する ↗</button></div>`;
-    return head+`<div class="recommended adaptive-questions" aria-label="今選べる質問">
-      ${plan.rows.map((q,i)=>`<button type="button" class="recommended-button" data-question="${q.id}"><span class="qtop"><span>${String(plan.page*4+i+1).padStart(2,'0')} · ${escapeHTML(q.label)}</span><span class="q-arrow" aria-hidden="true">↗</span></span><span class="qtext">${escapeHTML(q.text)}</span></button>`).join('')}
-    </div>
-    <div class="adaptive-bottom"><div class="adaptive-hint">質問は毎回入れ替わります。どれか1つ選んでください。</div>
-      ${plan.pages>1?`<button type="button" class="more-questions" id="next-questions">ほかの質問を見る <span aria-hidden="true">↻</span></button>`:''}
-    </div>`;
+    const head=`<div class="adaptive-intro"><div><span class="eyebrow">CHOOSE A QUESTION</span>
+      <h2>${escapeHTML(plan.phase)}</h2><p>${escapeHTML(plan.description)}</p></div>
+      <span class="step-chip">Q ${String(game.asked.length+1).padStart(2,'0')}</span></div>`;
+    if(!plan.rows.length)return head+`<div class="adaptive-empty"><strong>ひらめいたら答えてみよう！</strong><p>名前を入力してみてください。</p><button type="button" class="secondary-btn" id="open-guess">答えを入力する ↗</button></div>`;
+    return head+`<div class="recommended adaptive-questions" style="--question-rows:${plan.rows.length}" aria-label="今選べる質問">
+      ${plan.rows.map((q,i)=>`<button type="button" class="recommended-button" data-question="${q.id}"><span class="qtop"><span>${String(plan.page*4+i+1).padStart(2,'0')} · ${escapeHTML(q.label)}</span><span aria-hidden="true">↗</span></span><span class="qtext">${escapeHTML(q.text)}</span></button>`).join('')}
+    </div><div class="adaptive-bottom"><span class="adaptive-hint">選ぶと次の質問に切り替わります</span>
+    ${plan.pages>1?`<button type="button" class="more-questions" id="next-questions">ほかの質問 ↻</button>`:''}</div>`;
   }
   function renderGame(keepScroll=true){
     if(!game){home();return;}
-    const scroll=window.scrollY;
-    const last=game.asked.at(-1);
+    document.body.classList.add('playing');
     app.innerHTML=`<section class="game-shell">
-      <div class="game-crumb"><div><strong>逆アキネーター</strong><span>　/　${game.mode==='daily'?'今日の1問':'ランダム'}　/　${['','やさしい','ふつう','むずかしい'][game.difficulty]}</span></div><button type="button" id="return-home" class="link-button">← ホームへ</button></div>
-      <div class="game-layout"><div class="left-column">${statsHtml()}${historyHtml()}</div>
-        <div class="question-zone">
-          ${recommendedHtml()}
-        </div>
+      <div class="game-crumb"><div><strong>逆アキネーター</strong><span> / ${game.mode==='daily'?'今日の1問':'ランダム'} / ${['','やさしい','ふつう','むずかしい'][game.difficulty]}</span></div>
+        <button type="button" id="return-home" class="link-button">← ホーム</button></div>
+      <div class="game-main">
+        <div class="game-info">${statsHtml()}</div>
+        <div class="question-zone">${recommendedHtml()}</div>
       </div>
-      <div class="guess-dock"><div class="dock-copy"><strong>正体がわかった？</strong><small>${last?`${ANSWER[last.answer].short}　·　${game.asked.length} 個の質問済み`:'いつでも答えを入力できます'}</small></div><button type="button" class="primary-btn" id="open-guess">答えを入力 <span aria-hidden="true">↗</span></button></div>
+      <div class="game-bottom">
+        <button type="button" id="open-history" class="game-utility">履歴 <span>${game.asked.length}</span></button>
+        <button type="button" id="open-reveal" class="game-utility">ギブアップ</button>
+        <button type="button" class="primary-btn" id="open-guess">答えを入力 <span aria-hidden="true">↗</span></button>
+      </div>
     </section>`;
     soundState();
-    if(keepScroll)window.scrollTo({top:scroll,behavior:'instant'});
   }
-    function ask(id){
+  function ask(id){
     if(!game||game.finished||used(id))return;
     const q=DATA.questions[id];if(!q)return;
     const answer=answerFor(game.target,q);
@@ -319,7 +334,7 @@ function recommendedHtml() {
     el.remove();
   }
   function closeResult(){if(resultDialog.open)resultDialog.close();}
-  function goHome(){closeResult();if(guessDialog.open)guessDialog.close();if(revealDialog.open)revealDialog.close();home();window.scrollTo({top:0,behavior:'instant'});}
+  function goHome(){closeResult();if(guessDialog.open)guessDialog.close();if(revealDialog.open)revealDialog.close();if(historyDialog.open)historyDialog.close();home();window.scrollTo({top:0,behavior:'instant'});}
   function openGuess(){if(!game||game.finished)return;document.getElementById('guess-form').reset();document.getElementById('guess-error').textContent='';guessDialog.showModal();setTimeout(()=>document.getElementById('guess-input').focus(),50);}
 
   app.addEventListener('click', e=>{
@@ -332,9 +347,11 @@ function recommendedHtml() {
     if(e.target.closest('#next-questions')){choicePage++;renderGame();return;}
     const q=e.target.closest('[data-question]');
     if(q){ask(Number(q.dataset.question));return;}
+    if(e.target.closest('#open-history')){historyDialog.innerHTML=historyHtml();historyDialog.showModal();return;}
     if(e.target.closest('#open-guess')){openGuess();return;}
     if(e.target.closest('#open-reveal')){revealDialog.showModal();return;}
   });
+  historyDialog.addEventListener('click',e=>{if(e.target===historyDialog || e.target.closest('#history-close'))historyDialog.close();});
   document.getElementById('guess-form').addEventListener('submit',e=>{e.preventDefault();submitGuess(document.getElementById('guess-input').value);});
   document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>{
     const dlg=document.getElementById(button.dataset.close+'-dialog');if(dlg?.open)dlg.close();
